@@ -16,6 +16,7 @@ page = st.sidebar.selectbox("Navigate", [
     "Search by Paper",
     "Exam Papers",
     "Statistics",
+    "Classify a Question",
 ])
 show_detail = st.sidebar.checkbox("Show question detail", value=True)
 
@@ -139,3 +140,25 @@ elif page == "Statistics":
         ).round(1).sort_values('total_marks', ascending=False),
         width="stretch"
     )
+
+elif page == "Classify a Question":
+    st.title("Classify a Question")
+    st.caption("Type a question description and the classifier predicts its topic. "
+               "Uses TF-IDF + Naive Bayes trained on the existing question database.")
+ 
+    from classifier import load_and_train, classify
+    topic_model, sub_model, _ = load_and_train()
+ 
+    text = st.text_input("Question description:",
+                         placeholder="e.g. construct a truth table for the proposition")
+    if text:
+        topic, sub = classify(text, topic_model, sub_model)
+        c1, c2 = st.columns(2)
+        c1.metric("Topic", topic)
+        c2.metric("Sub-topic", sub)
+ 
+        st.divider()
+        st.caption("Similar questions in the database:")
+        matches = df[df['topic'] == topic].head(5)
+        for _, row in matches.iterrows():
+            show_question(row, show_detail=True)
