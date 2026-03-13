@@ -21,7 +21,7 @@ def show_question(row, show_detail=True):
     key = row['pdf'].replace("Discrete_Mathematics_", "").replace(".pdf", "")
     img = os.path.join(BASE_DIR, "page_images", key, f"page_{int(row['page'])}.png")
     if os.path.exists(img):
-        st.image(img, use_container_width=True)
+        st.image(img, width="stretch")
 
     c1, c2 = st.columns(2)
     exam_path = os.path.join(EXAMS_DIR, row['pdf'])

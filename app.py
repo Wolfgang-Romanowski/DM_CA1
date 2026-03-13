@@ -48,7 +48,7 @@ if page == "Introduction":
     papers = df.groupby(['year','paper_type']).agg(
         parts=('id','count'), marks=('marks','sum')
     ).reset_index().sort_values('year', ascending=False)
-    st.dataframe(papers, use_container_width=True, hide_index=True)
+    st.dataframe(papers, width="stretch", hide_index=True)
 
 
 elif page == "Search by Topic":
@@ -106,7 +106,7 @@ elif page == "Exam Papers":
             label = fname.replace("Discrete_Mathematics_","").replace(".pdf","").replace("_"," ")
             with open(os.path.join(EXAMS_DIR, fname), "rb") as f:
                 st.download_button(label, f.read(), file_name=fname,
-                                   mime="application/pdf", key=fname, use_container_width=True)
+                                   mime="application/pdf", key=fname)
 
 
 elif page == "Statistics":
@@ -137,5 +137,5 @@ elif page == "Statistics":
             questions=('id','count'), total_marks=('marks','sum'),
             avg_difficulty=('difficulty','mean')
         ).round(1).sort_values('total_marks', ascending=False),
-        use_container_width=True
+        width="stretch"
     )
