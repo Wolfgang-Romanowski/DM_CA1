@@ -48,3 +48,26 @@ I'm intentionally leaving awful lot out &mdash; such as how to preprocess exams 
 This assignment will be managd using github (instead of Moodle) so I can see progress.
 
 Draft rubric for grading is given [here](rubric.md)
+
+
+### Setup
+```bash
+pip install -r requirements.txt
+python parse_exams.py
+streamlit run app.py
+```
+
+### Features
+- **Search by Topic** — filter questions by topic and sub-topic
+- **Search by Keyword** — filter by specific concepts with AND/OR mode
+- **Search by Difficulty** — slider-based difficulty filter (1-5)
+- **Search by Paper** — browse a full exam paper with mark breakdown
+- **Exam Papers** — download any PDF
+- **Statistics** — topic frequency, difficulty distribution, marks heatmap
+- **Classify a Question** — TF-IDF + Naive Bayes classifier predicts topic from a description (95% accuracy)
+- **Practice Set** — select questions across filters, download as a combined PDF
+
+### Screenshots
+![Introduction](images/myintro.png)
+![Search by Topic](images/mytopic.png)
+![Practice Set](images/mypractice.png)
