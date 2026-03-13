@@ -4,9 +4,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 from helpers import load_questions, show_question, show_results, EXAMS_DIR
+import fitz
+import io
 
 st.set_page_config(page_title="Discrete Maths Study Guide", layout="wide")
 df = load_questions()
+
+if "selected_questions" not in st.session_state:
+    st.session_state.selected_questions = set()
 
 page = st.sidebar.selectbox("Navigate", [
     "Introduction",
@@ -17,6 +22,7 @@ page = st.sidebar.selectbox("Navigate", [
     "Exam Papers",
     "Statistics",
     "Classify a Question",
+    "Practice Set",
 ])
 show_detail = st.sidebar.checkbox("Show question detail", value=True)
 
@@ -162,3 +168,73 @@ elif page == "Classify a Question":
         matches = df[df['topic'] == topic].head(5)
         for _, row in matches.iterrows():
             show_question(row, show_detail=True)
+
+elif page == "Practice Set":
+    st.title("Practice Set")
+    st.caption("Select questions to build a custom practice paper and download as pdf")
+    #filter to narrow down before selecting
+    col1, col2, col3 = st.columns(3)
+    f_topic = col1.multiselect("Filter by topic:", sorted(df['topic'].unique()))
+    f_year = col2.multiselect("Filter by year:", sorted(df['year'].unique(), reverse=True))
+    f_diff = col3.slider("Difficulty:", 1, 5, (1, 5), key="ps_diff")
+ 
+    pool = df.copy()
+    if f_topic:
+        pool = pool[pool['topic'].isin(f_topic)]
+    if f_year:
+        pool = pool[pool['year'].isin(f_year)]
+    pool = pool[(pool['difficulty'] >= f_diff[0]) & (pool['difficulty'] <= f_diff[1])]
+    pool = pool.sort_values(['year','question','part'], ascending=[False,True,True])
+ 
+    total_selected = len(st.session_state.selected_questions)
+    st.write(f"**{len(pool)} questions shown** ({total_selected} selected overall)")
+ 
+    #checkboxes
+    for _, row in pool.iterrows():
+        qid = row['id']
+        was_selected = qid in st.session_state.selected_questions
+        label = f"Q{row['question']}({row['part']}) -- {row['year']} {row['paper_type']} -- {row['topic']} ({row['marks']} marks)"
+        checked = st.checkbox(label, value=was_selected, key=f"ps_{qid}")
+ 
+        if checked and not was_selected:
+            st.session_state.selected_questions.add(qid)
+        elif not checked and was_selected:
+            st.session_state.selected_questions.discard(qid)
+ 
+    selected_ids = st.session_state.selected_questions
+    if selected_ids:
+        selected_rows = df[df['id'].isin(selected_ids)]
+        total_marks = int(selected_rows['marks'].sum())
+ 
+        st.divider()
+        st.write(f"**Selected: {len(selected_ids)} questions, {total_marks} marks**")
+ 
+        if st.button("Clear all selections"):
+            st.session_state.selected_questions = set()
+            st.rerun()
+ 
+        #combined PDF
+        output_pdf = fitz.open()
+        added_pages = set()
+ 
+        for _, row in selected_rows.sort_values(['year','question','part']).iterrows():
+            pdf_path = os.path.join(EXAMS_DIR, row['pdf'])
+            page_key = (row['pdf'], int(row['page']))
+            if page_key in added_pages or not os.path.exists(pdf_path):
+                continue
+            added_pages.add(page_key)
+ 
+            src = fitz.open(pdf_path)
+            output_pdf.insert_pdf(src, from_page=int(row['page'])-1, to_page=int(row['page'])-1)
+            src.close()
+ 
+        buf = io.BytesIO()
+        output_pdf.save(buf)
+        output_pdf.close()
+ 
+        st.download_button(
+            f"Download Practice Set ({len(added_pages)} pages, {total_marks} marks)",
+            buf.getvalue(),
+            file_name="practice_set.pdf",
+            mime="application/pdf",
+        )
