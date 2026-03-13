@@ -22,10 +22,33 @@ show_detail = st.sidebar.checkbox("Show question detail", value=True)
 
 if page == "Introduction":
     st.title("Discrete Mathematics Exam Guide")
-    st.caption(
-        "Search and filter past exam questions by topic, keyword, difficulty, or paper.  \n"
+    st.write(
+        "Search and filter past exam questions by topic, keyword, difficulty, or paper. "
         "Use the sidebar to navigate."
     )
+ 
+    st.divider()
+ 
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Questions", len(df))
+    col2.metric("Papers", df[['year','paper_type']].drop_duplicates().shape[0])
+    col3.metric("Topics", df['topic'].nunique())
+ 
+    st.divider()
+ 
+    st.subheader("Topics covered")
+    for topic in sorted(df['topic'].unique()):
+        subs = sorted(df[df['topic']==topic]['sub_topic'].unique())
+        count = len(df[df['topic']==topic])
+        st.caption(f"**{topic}** ({count} questions) -- {', '.join(subs)}")
+ 
+    st.divider()
+ 
+    st.subheader("Papers available")
+    papers = df.groupby(['year','paper_type']).agg(
+        parts=('id','count'), marks=('marks','sum')
+    ).reset_index().sort_values('year', ascending=False)
+    st.dataframe(papers, use_container_width=True, hide_index=True)
 
 
 elif page == "Search by Topic":
@@ -65,7 +88,13 @@ elif page == "Search by Paper":
                           [f"{r['year']} {r['paper_type']}" for _, r in papers.iterrows()])
     year, ptype = choice.rsplit(" ", 1)
     filtered = df[(df['year'] == year) & (df['paper_type'] == ptype)].sort_values(['question','part'])
-    st.caption(f"{len(filtered)} parts -- {int(filtered['marks'].sum())} marks")
+    
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Parts", len(filtered))
+    c2.metric("Total marks", int(filtered['marks'].sum()))
+    c3.metric("Avg difficulty", f"{filtered['difficulty'].mean():.1f}")
+ 
+    st.divider()
     for _, row in filtered.iterrows():
         show_question(row, show_detail)
 
@@ -83,22 +112,26 @@ elif page == "Exam Papers":
 elif page == "Statistics":
     st.title("Exam Paper Statistics")
     sns.set_style("darkgrid")
-
+ 
+    st.subheader("Topics per year")
     fig, ax = plt.subplots(figsize=(10, 5))
     df.groupby(['year','topic']).size().unstack(fill_value=0).plot(
         kind='bar', stacked=True, ax=ax, colormap='Set2')
     ax.set_ylabel("# question parts"); ax.legend(bbox_to_anchor=(1.05, 1))
     plt.tight_layout(); st.pyplot(fig)
-
+ 
+    st.subheader("Difficulty distribution")
     fig2, ax2 = plt.subplots(figsize=(8, 4))
     sns.countplot(data=df, x='difficulty', palette='RdYlGn_r', ax=ax2)
     ax2.set_xlabel("Difficulty"); plt.tight_layout(); st.pyplot(fig2)
-
+ 
+    st.subheader("Marks heatmap (topic x year)")
     fig3, ax3 = plt.subplots(figsize=(10, 5))
     hm = df.groupby(['topic','year'])['marks'].sum().unstack(fill_value=0)
     sns.heatmap(hm, annot=True, fmt='.0f', cmap='YlOrRd', ax=ax3, linewidths=0.5)
     plt.tight_layout(); st.pyplot(fig3)
-
+ 
+    st.subheader("Summary")
     st.dataframe(
         df.groupby('topic').agg(
             questions=('id','count'), total_marks=('marks','sum'),
