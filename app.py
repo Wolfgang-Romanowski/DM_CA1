@@ -25,7 +25,9 @@ page = st.sidebar.selectbox("Navigate", [
     "Practice Set",
 ])
 show_detail = st.sidebar.checkbox("Show question detail", value=True)
-
+ps_count = len(st.session_state.selected_questions)
+if ps_count > 0:
+    st.sidebar.caption(f"Practice set: {ps_count} questions selected")
 
 if page == "Introduction":
     st.title("Discrete Mathematics Exam Guide")
@@ -60,6 +62,9 @@ if page == "Introduction":
 
 elif page == "Search by Topic":
     st.title("Search by Topic")
+    with st.expander("How does this work?"):
+        st.write("Select one or more topics to see all matching questions. "
+                 "Optionally narrow down by sub-topic.")
     selected = st.multiselect("Select topic(s):", sorted(df['topic'].unique()))
     if selected:
         filtered = df[df['topic'].isin(selected)]
@@ -67,10 +72,13 @@ elif page == "Search by Topic":
         if sel_subs:
             filtered = filtered[filtered['sub_topic'].isin(sel_subs)]
         show_results(filtered, show_detail)
-
-
+ 
+ 
 elif page == "Search by Keyword":
     st.title("Search by Keyword")
+    with st.expander("How does this work?"):
+        st.write("Select keywords that appear in question descriptions. "
+                 "OR finds questions with any keyword. AND requires all keywords.")
     all_kw = sorted(set(k.strip() for kws in df['keywords'].dropna() for k in kws.split(",")))
     selected = st.multiselect("Select keywords:", all_kw)
     mode = st.radio("Match mode:", ["OR", "AND"], horizontal=True) if len(selected) > 1 else "OR"
@@ -81,13 +89,15 @@ elif page == "Search by Keyword":
             mask = df['keywords'].apply(lambda x: any(k in str(x) for k in selected))
         show_results(df[mask], show_detail)
 
-
 elif page == "Search by Difficulty":
     st.title("Search by Difficulty")
+    with st.expander("How does this work?"):
+        st.write("Difficulty is rated 1-5. "
+                 "1 = straightforward recall. 5 = very challenging, requires insight.")
     lo, hi = st.slider("Difficulty range:", 1, 5, (1, 3))
     show_results(df[(df['difficulty'] >= lo) & (df['difficulty'] <= hi)], show_detail)
-
-
+ 
+ 
 elif page == "Search by Paper":
     st.title("Search by Paper")
     papers = df[['year','paper_type']].drop_duplicates().sort_values('year', ascending=False)
@@ -95,7 +105,7 @@ elif page == "Search by Paper":
                           [f"{r['year']} {r['paper_type']}" for _, r in papers.iterrows()])
     year, ptype = choice.rsplit(" ", 1)
     filtered = df[(df['year'] == year) & (df['paper_type'] == ptype)].sort_values(['question','part'])
-    
+ 
     c1, c2, c3 = st.columns(3)
     c1.metric("Parts", len(filtered))
     c2.metric("Total marks", int(filtered['marks'].sum()))
@@ -104,8 +114,8 @@ elif page == "Search by Paper":
     st.divider()
     for _, row in filtered.iterrows():
         show_question(row, show_detail)
-
-
+ 
+ 
 elif page == "Exam Papers":
     st.title("Exam Papers")
     for fname in sorted(os.listdir(EXAMS_DIR), reverse=True):
@@ -120,32 +130,34 @@ elif page == "Statistics":
     st.title("Exam Paper Statistics")
     sns.set_style("darkgrid")
  
-    st.subheader("Topics per year")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    df.groupby(['year','topic']).size().unstack(fill_value=0).plot(
-        kind='bar', stacked=True, ax=ax, colormap='Set2')
-    ax.set_ylabel("# question parts"); ax.legend(bbox_to_anchor=(1.05, 1))
-    plt.tight_layout(); st.pyplot(fig)
+    tab1, tab2, tab3, tab4 = st.tabs(["Topics per year", "Difficulty", "Marks heatmap", "Summary"])
  
-    st.subheader("Difficulty distribution")
-    fig2, ax2 = plt.subplots(figsize=(8, 4))
-    sns.countplot(data=df, x='difficulty', palette='RdYlGn_r', ax=ax2)
-    ax2.set_xlabel("Difficulty"); plt.tight_layout(); st.pyplot(fig2)
+    with tab1:
+        fig, ax = plt.subplots(figsize=(10, 5))
+        df.groupby(['year','topic']).size().unstack(fill_value=0).plot(
+            kind='bar', stacked=True, ax=ax, colormap='Set2')
+        ax.set_ylabel("# question parts"); ax.legend(bbox_to_anchor=(1.05, 1))
+        plt.tight_layout(); st.pyplot(fig)
  
-    st.subheader("Marks heatmap (topic x year)")
-    fig3, ax3 = plt.subplots(figsize=(10, 5))
-    hm = df.groupby(['topic','year'])['marks'].sum().unstack(fill_value=0)
-    sns.heatmap(hm, annot=True, fmt='.0f', cmap='YlOrRd', ax=ax3, linewidths=0.5)
-    plt.tight_layout(); st.pyplot(fig3)
+    with tab2:
+        fig2, ax2 = plt.subplots(figsize=(8, 4))
+        sns.countplot(data=df, x='difficulty', palette='RdYlGn_r', ax=ax2)
+        ax2.set_xlabel("Difficulty"); plt.tight_layout(); st.pyplot(fig2)
  
-    st.subheader("Summary")
-    st.dataframe(
-        df.groupby('topic').agg(
-            questions=('id','count'), total_marks=('marks','sum'),
-            avg_difficulty=('difficulty','mean')
-        ).round(1).sort_values('total_marks', ascending=False),
-        width="stretch"
-    )
+    with tab3:
+        fig3, ax3 = plt.subplots(figsize=(10, 5))
+        hm = df.groupby(['topic','year'])['marks'].sum().unstack(fill_value=0)
+        sns.heatmap(hm, annot=True, fmt='.0f', cmap='YlOrRd', ax=ax3, linewidths=0.5)
+        plt.tight_layout(); st.pyplot(fig3)
+ 
+    with tab4:
+        st.dataframe(
+            df.groupby('topic').agg(
+                questions=('id','count'), total_marks=('marks','sum'),
+                avg_difficulty=('difficulty','mean')
+            ).round(1).sort_values('total_marks', ascending=False),
+            width="stretch"
+        )
 
 elif page == "Classify a Question":
     st.title("Classify a Question")
@@ -205,36 +217,38 @@ elif page == "Practice Set":
     if selected_ids:
         selected_rows = df[df['id'].isin(selected_ids)]
         total_marks = int(selected_rows['marks'].sum())
- 
+
         st.divider()
         st.write(f"**Selected: {len(selected_ids)} questions, {total_marks} marks**")
- 
+
         if st.button("Clear all selections"):
             st.session_state.selected_questions = set()
             st.rerun()
- 
-        #combined PDF
+
         output_pdf = fitz.open()
         added_pages = set()
- 
+
         for _, row in selected_rows.sort_values(['year','question','part']).iterrows():
             pdf_path = os.path.join(EXAMS_DIR, row['pdf'])
             page_key = (row['pdf'], int(row['page']))
             if page_key in added_pages or not os.path.exists(pdf_path):
                 continue
             added_pages.add(page_key)
- 
+
             src = fitz.open(pdf_path)
             output_pdf.insert_pdf(src, from_page=int(row['page'])-1, to_page=int(row['page'])-1)
             src.close()
- 
-        buf = io.BytesIO()
-        output_pdf.save(buf)
-        output_pdf.close()
- 
-        st.download_button(
-            f"Download Practice Set ({len(added_pages)} pages, {total_marks} marks)",
-            buf.getvalue(),
-            file_name="practice_set.pdf",
-            mime="application/pdf",
-        )
+
+        if added_pages:
+            buf = io.BytesIO()
+            output_pdf.save(buf)
+            output_pdf.close()
+
+            st.download_button(
+                f"Download Practice Set ({len(added_pages)} pages, {total_marks} marks)",
+                buf.getvalue(),
+                file_name="practice_set.pdf",
+                mime="application/pdf",
+            )
+        else:
+            output_pdf.close()

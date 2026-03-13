@@ -9,6 +9,7 @@ def load_questions():
     return pd.read_csv(os.path.join(BASE_DIR, "questions.csv"))
 
 def show_question(row, show_detail=True):
+  with st.container(border=True):
     st.subheader(f"{row['year']} {row['paper_type']} -- Q{row['question']} ({row['part']})")
     if show_detail:
         st.caption(
@@ -21,7 +22,8 @@ def show_question(row, show_detail=True):
     key = row['pdf'].replace("Discrete_Mathematics_", "").replace(".pdf", "")
     img = os.path.join(BASE_DIR, "page_images", key, f"page_{int(row['page'])}.png")
     if os.path.exists(img):
-        st.image(img, width="stretch")
+        with st.expander("View question"):
+            st.image(img, width="stretch")
 
     c1, c2 = st.columns(2)
     exam_path = os.path.join(EXAMS_DIR, row['pdf'])
