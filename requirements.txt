@@ -4,3 +4,5 @@ matplotlib
 seaborn
 pymupdf
 streamlit
+google-generativeai
+Pillow
